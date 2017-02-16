@@ -1,6 +1,0 @@
-com/example/UserRepository.class
-com/example/User.class
-com/example/OAuthConfiguration.class
-com/example/PrincipalRestController.class
-com/example/AuthApplication.class
-com/example/UserDetailsServiceImpl.class
