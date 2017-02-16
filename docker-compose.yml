@@ -1,0 +1,175 @@
+version: '2'
+
+services:
+
+  # *** DATA STORES and other products ***
+
+  mysql:
+    image: mysql:5.7
+    ports:
+     - 3306:3306
+    environment:
+     - MYSQL_ROOT_PASSWORD=dbpass
+     - MYSQL_DATABASE=dev
+    depends_on:
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "mysql"
+
+
+  redis:
+    image: redis:3.0
+    ports:
+     - 6379:6379
+    depends_on:
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "redis"
+
+
+  elasticsearch:
+    image: elasticsearch:2.4.1
+    ports:
+     - 9200:9200
+     - 9300:9300
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "elasticsearch"
+  #  volumes:
+  #   - /opt/docker/elasticsearch:/usr/share/elasticsearch/data
+
+
+  kibana:
+    image: kibana:4.6
+    ports:
+     - 5601:5601
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "kibana"
+
+
+  logstash:
+    image: davita/logstash
+    command: logstash -f /config-dir/logstash.conf
+    depends_on:
+     - elasticsearch
+    ports:
+     - "5000:5000/udp"
+     - "4560:4560"
+
+
+  kafka:
+    image: spotify/kafka
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    environment:
+      ADVERTISED_HOST: $DOCKER_IP
+      ADVERTISED_PORT: 9092
+    depends_on:
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "kafka"
+
+
+  # *** BASE SERVICES ***
+
+  config-service:
+    image: davita/config-service
+    environment:
+     - SPRING_PROFILES_ACTIVE=docker
+     - DOCKER_IP=$DOCKER_IP
+    ports:
+     - 8888:8888
+    depends_on:
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "config-service"
+
+
+  hystrix-dashboard:
+    image: davita/hystrix-dashboard
+    environment:
+     - SPRING_PROFILES_ACTIVE=docker
+     - DOCKER_IP=$DOCKER_IP
+    ports:
+     - 6010:8010
+    depends_on:
+     - discovery-service
+     - config-service
+     - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "hystrix"
+
+
+  auth-service:
+    image: davita/auth-service
+    ports:
+     - 8181:8181
+    environment:
+     - SPRING_PROFILES_ACTIVE=docker
+     - DOCKER_IP=$DOCKER_IP
+    depends_on:
+     - mysql
+     - discovery-service
+     - config-service
+     - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "auth-service"
+
+
+  discovery-service:
+    image: davita/discovery-service
+    ports:
+     - 8761:8761
+    environment:
+     - SPRING_PROFILES_ACTIVE=docker
+     - DOCKER_IP=$DOCKER_IP
+    depends_on:
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "discovery-service"
+
+
+  edge-service:
+    image: davita/edge-service
+    ports:
+     - 9999:9999
+    environment:
+     - SPRING_PROFILES_ACTIVE=docker
+     - DOCKER_IP=$DOCKER_IP
+    depends_on:
+      - auth-service
+      - discovery-service
+      - config-service
+      - logstash
+    logging:
+      driver: gelf
+      options:
+        gelf-address: udp://$DOCKER_IP:5000
+        tag: "edge-service"

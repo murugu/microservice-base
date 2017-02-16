@@ -1,0 +1,25 @@
+server:
+  port: 8888
+spring:
+  application:
+    name: config-service
+  cloud:
+    config:
+      server:
+        git:
+          #TODO create separate repositories for base services and customer services. See: https://cloud.spring.io/spring-cloud-config/spring-cloud-config.html#_environment_repository
+          # use  git repo in integration
+          #TODO add some way of authentication to git repo (ssh or user/pass)
+          # for now just use an extenal public git repo. No sensitive information is stored there
+          uri: https://bitbucket.org/logicalzoom/davita-config.git
+          # for ssh to work need to add public key to git repo and set Host bitbucket.org \n    StrictHostKeyChecking no \n in .ssh/config file
+          # ssh not working from docker container
+          #uri: git@bitbucket.org:logicalzoom/davita-config.git
+          # file path won't work from docker.
+          # for this path to work, config-service needs to be started with mvn spring-boot:run
+          # use local repo in local development
+          #uri: file:./../../microservices-config
+          # or absolute path
+          #uri: file://${user.home}/.../microservices-config
+          #uri: file://Users/.../microservices-config
+          cloneOnStart: true
